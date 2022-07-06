@@ -14,8 +14,7 @@ import redis
 )
 def prepare():
     r = redis.from_url(os.environ.get("REDIS_URL"))
-    next_repo = r.spop("github_repos")
-    while next_repo:
+    while next_repo := r.spop("github_repos"):
         next_repo = next_repo.decode()
         users = []
         _get_star_gazers(
@@ -24,11 +23,10 @@ def prepare():
             os.environ.get("GITHUB_CLIENT_SECRET"),
             user_profiles=users,
         )
-        f = "ghost_list/1_{}_.json".format(next_repo.replace("/", "_"))
+        f = f'ghost_list/1_{next_repo.replace("/", "_")}_.json'
         for user in users:
             user_info = {"github_info": user, "file": f}
             r.sadd("github_list", json.dumps(user_info))
-        next_repo = r.spop("github_repos")
 
 
 @task(
@@ -63,9 +61,7 @@ def get_email():
             if response["email"] is not None:
                 email_count += 1
             time.sleep(0.3)
-        elif resp.status_code == 404:
-            pass
-        else:
+        elif resp.status_code != 404:
             r.sadd("github_list", json.dumps(profile))
             print("failed --- i ", i, email_count)
             print(resp.status_code)
@@ -82,8 +78,7 @@ def clean_redis_set():
     engine = create_engine(os.environ.get("DB_CONNECTION_STRING"))
     connection = engine.connect()
     r = redis.from_url(os.environ.get("REDIS_URL"))
-    profile = r.spop("finished_profiles")
-    while profile:
+    while profile := r.spop("finished_profiles"):
         profile = json.loads(profile.decode())
         # move this into the SQL DB
         try:
@@ -105,7 +100,6 @@ def clean_redis_set():
         except:
             print("failed on ", profile)
             r.sadd("finished_profiles_error", json.dumps(profile))
-        profile = r.spop("finished_profiles")
     connection.close()
 
 
@@ -125,27 +119,13 @@ def _create_new_lead(
     raw=None,
 ):
     connection.execute(
-        "insert into github_leads (source_file, source_repo, gh_login, gh_id, gh_name, gh_email, gh_twitter, gh_public_repos, gh_followers, gh_created_at, gh_updated_at, raw) values ('{}', '{}', '{}', '{}', '{}', '{}', '{}', {}, {}, '{}', '{}', '{}')".format(
-            source_file,
-            source_repo,
-            gh_login,
-            gh_id,
-            gh_name,
-            gh_email,
-            gh_twitter,
-            gh_public_repos,
-            gh_followers,
-            gh_created_at,
-            gh_updated_at,
-            raw,
-        )
+        f"insert into github_leads (source_file, source_repo, gh_login, gh_id, gh_name, gh_email, gh_twitter, gh_public_repos, gh_followers, gh_created_at, gh_updated_at, raw) values ('{source_file}', '{source_repo}', '{gh_login}', '{gh_id}', '{gh_name}', '{gh_email}', '{gh_twitter}', {gh_public_repos}, {gh_followers}, '{gh_created_at}', '{gh_updated_at}', '{raw}')"
     )
 
 
 def _get_star_gazers(repo, client_id, client_secret, page=1, user_profiles=[]):
-    url = "https://api.github.com/repos/{}/stargazers?per_page=100&page={}".format(
-        repo, page
-    )
+    url = f"https://api.github.com/repos/{repo}/stargazers?per_page=100&page={page}"
+
     resp = requests.get(url, auth=(client_id, client_secret))
     if resp.status_code == 200:
         response = resp.json()
@@ -173,10 +153,8 @@ def _get_star_gazers(repo, client_id, client_secret, page=1, user_profiles=[]):
 
 def _get_repo(file_name):
     main_name = "_".join(file_name.split("/")[1].split("_")[1:])
-    github_repo_name = "{}/{}".format(main_name.split("_")[0], main_name.split("_")[1])
-    return github_repo_name
+    return f'{main_name.split("_")[0]}/{main_name.split("_")[1]}'
 
 
-if __name__ == "__main__":
-    pass
+pass
 
