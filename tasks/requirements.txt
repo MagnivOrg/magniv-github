@@ -8,7 +8,7 @@ greenlet==1.1.2
 idna==3.3
 magniv==0.1.38
 packaging==21.3
-pip==20.2.3
+pip==23.3
 psycopg2==2.9.3
 pyparsing==3.0.9
 python-dotenv==0.20.0
